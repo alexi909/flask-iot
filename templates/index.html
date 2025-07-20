@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Monitor IoT - ESP32</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            padding: 20px;
+            text-align: center;
+        }
+        .grafico {
+            background: #fff;
+            padding: 15px;
+            margin: 20px auto;
+            border-radius: 12px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            max-width: 850px;
+        }
+        canvas {
+            max-width: 100%;
+            height: 300px;
+        }
+        img.icono {
+            width: 40px;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 6px;
+            background-color: #007BFF;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌐 Monitor de Sensores - Estación ESP32</h1>
+
+    <div class="grafico">
+        <h2><img src="/static/img/temp.png" class="icono">Temperatura (°C)</h2>
+        <canvas id="chartTemperatura"></canvas>
+    </div>
+
+    <div class="grafico">
+        <h2><img src="/static/img/humedad.png" class="icono">Humedad (%)</h2>
+        <canvas id="chartHumedad"></canvas>
+    </div>
+
+    <div class="grafico">
+        <h2><img src="/static/img/presion.png" class="icono">Presión (hPa)</h2>
+        <canvas id="chartPresion"></canvas>
+    </div>
+
+    <div class="grafico">
+        <h2><img src="/static/img/uv.png" class="icono">Radiación UV (lux)</h2>
+        <canvas id="chartUV"></canvas>
+    </div>
+
+    <div class="grafico">
+        <h2><img src="/static/img/aire.png" class="icono">Calidad de Aire</h2>
+        <canvas id="chartAire"></canvas>
+    </div>
+
+    <button onclick="exportarCSV()">📤 Exportar CSV</button>
+    <button onclick="eliminarDatos()">🗑️ Eliminar datos</button>
+
+    <script>
+        const charts = {
+            chartTemperatura: null,
+            chartHumedad: null,
+            chartPresion: null,
+            chartUV: null,
+            chartAire: null
+        };
+
+        async function cargarDatos() {
+            const res = await fetch('/ver_datos_json');
+            const datos = await res.json();
+
+            const etiquetas = datos.map(d => d.fecha_hora);
+            const temperatura = datos.map(d => d.temperatura);
+            const humedad = datos.map(d => d.humedad);
+            const presion = datos.map(d => d.presion);
+            const uv = datos.map(d => d.radiacion_uv);
+            const aire = datos.map(d => d.calidad_aire);
+
+            renderChart('chartTemperatura', etiquetas, temperatura, '°C', 'red');
+            renderChart('chartHumedad', etiquetas, humedad, '%', 'blue');
+            renderChart('chartPresion', etiquetas, presion, 'hPa', 'green');
+            renderChart('chartUV', etiquetas, uv, 'Lux', 'purple');
+            renderChart('chartAire', etiquetas, aire, '', 'orange');
+        }
+
+        function renderChart(id, labels, data, unidad, color) {
+            const ctx = document.getElementById(id).getContext('2d');
+            if (charts[id]) charts[id].destroy();
+            charts[id] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: id.replace('chart', '') + ' (' + unidad + ')',
+                        data: data,
+                        fill: false,
+                        borderColor: color,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { ticks: { autoSkip: true, maxTicksLimit: 10 } }
+                    }
+                }
+            });
+        }
+
+        function exportarCSV() {
+            window.location.href = '/exportar_csv';
+        }
+
+        function eliminarDatos() {
+            if (confirm("¿Estás seguro de que deseas eliminar todos los datos?")) {
+                fetch('/eliminar_datos', { method: 'POST' })
+                    .then(() => {
+                        alert("Datos eliminados");
+                        cargarDatos();
+                    });
+            }
+        }
+
+        cargarDatos();
+        setInterval(cargarDatos, 10000);  // Actualizar cada 10 segundos
+    </script>
+</body>
+</html>
+
