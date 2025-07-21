@@ -2,127 +2,74 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Monitor IoT - ESP32</title>
+    <title>Datos de Sensores - IoT ESP32</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: #f7f9fb;
-            color: #333;
-            margin: 20px;
-        }
-        h1 {
-            text-align: center;
-            margin-bottom: 30px;
-        }
         .sensor-card {
-            background: #fff;
-            padding: 15px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            border-radius: 12px;
+            margin-bottom: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
         canvas {
-            max-width: 100%;
+            max-height: 300px;
         }
-        .sensor-img {
-            width: 60px;
-            float: right;
-            margin-top: -10px;
+        img {
+            height: 80px;
+            margin-bottom: 10px;
         }
-        .btns {
-            text-align: center;
-            margin-top: 40px;
-        }
-        button {
-            padding: 10px 20px;
-            margin: 10px;
-            font-size: 1em;
-            cursor: pointer;
-            border: none;
-            border-radius: 8px;
-        }
-        .export {
-            background-color: #4CAF50;
-            color: white;
-        }
-        .delete {
-            background-color: #f44336;
-            color: white;
+        .btn-group {
+            margin-bottom: 1rem;
         }
     </style>
 </head>
-<body>
-    <h1>📊 Monitor en Tiempo Real - Estación ESP32</h1>
+<body class="bg-light">
+<div class="container py-4">
+    <h1 class="text-center mb-4">📊 Monitor de Estación IoT (ESP32)</h1>
 
-    <div class="sensor-card">
-        <h2>🌡️ Temperatura (°C) <img src="/static/img/temp.png" class="sensor-img"></h2>
-        <canvas id="chartTemp"></canvas>
+    <div class="btn-group d-flex justify-content-center mb-4">
+        <a href="/exportar_csv" class="btn btn-success me-2">⬇️ Exportar CSV</a>
+        <a href="/eliminar" class="btn btn-danger">🗑️ Eliminar Datos</a>
     </div>
 
-    <div class="sensor-card">
-        <h2>💧 Humedad (%) <img src="/static/img/humedad.png" class="sensor-img"></h2>
-        <canvas id="chartHum"></canvas>
+    <div class="row">
+        <div class="col-md-6 sensor-card bg-white p-3">
+            <h4 class="text-center">🌡️ Temperatura</h4>
+            <img src="https://img.icons8.com/emoji/96/thermometer-emoji.png" alt="Temperatura" class="d-block mx-auto">
+            <canvas id="graficoTemperatura"></canvas>
+        </div>
+
+        <div class="col-md-6 sensor-card bg-white p-3">
+            <h4 class="text-center">💧 Humedad</h4>
+            <img src="https://img.icons8.com/emoji/96/droplet-emoji.png" alt="Humedad" class="d-block mx-auto">
+            <canvas id="graficoHumedad"></canvas>
+        </div>
+
+        <div class="col-md-6 sensor-card bg-white p-3">
+            <h4 class="text-center">🌬️ Presión</h4>
+            <img src="https://img.icons8.com/emoji/96/dash-emoji.png" alt="Presión" class="d-block mx-auto">
+            <canvas id="graficoPresion"></canvas>
+        </div>
+
+        <div class="col-md-6 sensor-card bg-white p-3">
+            <h4 class="text-center">🌫️ Calidad del Aire</h4>
+            <img src="https://img.icons8.com/emoji/96/fog-emoji.png" alt="Calidad Aire" class="d-block mx-auto">
+            <canvas id="graficoCalidadAire"></canvas>
+        </div>
+
+        <div class="col-md-6 sensor-card bg-white p-3">
+            <h4 class="text-center">🔆 Radiación UV</h4>
+            <img src="https://img.icons8.com/emoji/96/sun-emoji.png" alt="Radiación UV" class="d-block mx-auto">
+            <canvas id="graficoRadiacionUV"></canvas>
+        </div>
     </div>
+</div>
 
-    <div class="sensor-card">
-        <h2>⛰️ Presión (hPa) <img src="/static/img/presion.png" class="sensor-img"></h2>
-        <canvas id="chartPres"></canvas>
-    </div>
-
-    <div class="sensor-card">
-        <h2>☀️ Radiación UV (lux) <img src="/static/img/uv.png" class="sensor-img"></h2>
-        <canvas id="chartUV"></canvas>
-    </div>
-
-    <div class="sensor-card">
-        <h2>🌫️ Calidad de Aire <img src="/static/img/aire.png" class="sensor-img"></h2>
-        <canvas id="chartAire"></canvas>
-    </div>
-
-    <div class="btns">
-        <form method="POST" action="/eliminar" style="display:inline;">
-            <button class="delete">🗑️ Eliminar Datos</button>
-        </form>
-        <a href="/exportar"><button class="export">⬇️ Exportar CSV</button></a>
-    </div>
-
-    <script>
-        const labels = {{ datos | map(attribute=1) | list }};
-        const tempData = {{ datos | map(attribute=2) | list }};
-        const humData  = {{ datos | map(attribute=3) | list }};
-        const presData = {{ datos | map(attribute=4) | list }};
-        const uvData   = {{ datos | map(attribute=5) | list }};
-        const aireData = {{ datos | map(attribute=6) | list }};
-
-        function drawChart(id, label, data, color) {
-            new Chart(document.getElementById(id), {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: label,
-                        data: data,
-                        borderColor: color,
-                        fill: false
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        x: {
-                            ticks: { maxRotation: 90, minRotation: 45 }
-                        }
-                    }
-                }
-            });
-        }
-
-        drawChart("chartTemp", "Temperatura", tempData, "#f44336");
-        drawChart("chartHum", "Humedad", humData, "#2196F3");
-        drawChart("chartPres", "Presión", presData, "#9C27B0");
-        drawChart("chartUV", "Radiación UV", uvData, "#FF9800");
-        drawChart("chartAire", "Calidad Aire", aireData, "#4CAF50");
-    </script>
+<script>
+    const datos = {{ datos|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/graficas.js') }}"></script>
 </body>
 </html>
